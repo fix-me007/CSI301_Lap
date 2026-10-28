@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bank dApp | Sepolia</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['"LINE Seed Sans TH"', 'system-ui', 'sans-serif'] } } }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.14.0/dist/ethers.umd.min.js"></script>
+  <style>
+    /* วางไฟล์ LINESeedSansTH_W_Rg.woff2 ไว้โฟลเดอร์เดียวกับ index.html */
+    @font-face {
+      font-family: "LINE Seed Sans TH";
+      src: url("./LINESeedSansTH_W_Rg.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    body {
+      font-family: "LINE Seed Sans TH", system-ui, -apple-system, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 10% 5%, rgba(16,185,129,.12), transparent 28rem),
+        radial-gradient(circle at 90% 20%, rgba(59,130,246,.10), transparent 28rem),
+        #f8fafc;
+    }
+    .glass { background: rgba(255,255,255,.82); backdrop-filter: blur(14px); }
+  </style>
+</head>
+<body class="min-h-screen text-slate-900 antialiased">
+  <main class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-14">
+    <header class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+          <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+          Ethereum Sepolia Testnet
+        </div>
+        <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Bank <span class="text-emerald-600">dApp</span></h1>
+        <p class="mt-2 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
+           Lab Week 9 โดย สามารถ ฝาก ถอน และตรวจสอบยอด ETH ด้วย Smart Contract
+        </p>
+        <p class="mt-2 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
+          นาย รวิภาส ทัดแก้ว 66060564 L003
+        </p>
+      </div>
+      <button id="connectBtn" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60">
+        Connect Wallet
+      </button>
+    </header>
+
+    <section class="mb-6 grid gap-4 sm:grid-cols-3">
+      <div class="glass rounded-2xl border border-white p-5 shadow-sm">
+        <p class="text-sm font-medium text-slate-500">ยอดเงินในบัญชี Contract</p>
+        <div class="mt-3 flex items-baseline gap-2">
+          <span id="balance" class="text-3xl font-bold tracking-tight">—</span>
+          <span class="font-semibold text-slate-500">ETH</span>
+        </div>
+        <p class="mt-2 text-xs text-slate-400">ยอดของ Wallet ที่เชื่อมต่ออยู่</p>
+      </div>
+      <div class="glass rounded-2xl border border-white p-5 shadow-sm">
+        <p class="text-sm font-medium text-slate-500">Wallet ที่เชื่อมต่อ</p>
+        <p id="walletAddress" class="mt-4 break-all font-mono text-sm font-semibold text-slate-700">ยังไม่ได้เชื่อมต่อ</p>
+        <p id="networkLabel" class="mt-2 text-xs text-slate-400">กรุณาเชื่อมต่อ MetaMask</p>
+      </div>
+      <div class="glass rounded-2xl border border-white p-5 shadow-sm">
+        <p class="text-sm font-medium text-slate-500">Network</p>
+        <div class="mt-3 flex items-center gap-2">
+          <span id="networkDot" class="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+          <span id="networkName" class="text-lg font-bold">Not connected</span>
+        </div>
+        <p class="mt-2 text-xs text-slate-400">ใช้ Sepolia test ETH เท่านั้น</p>
+        <p class="mt-1 text-xs text-slate-400">Latest block: <span id="latestBlock" class="font-mono font-semibold text-slate-600">—</span></p>
+      </div>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-2">
+      <div class="glass rounded-3xl border border-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+        <div class="mb-6 flex items-start gap-4">
+          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+            <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14m-7-7h14"/><path d="M5 8V5h14v3M5 16v3h14v-3"/></svg>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold">ฝาก ETH</h2>
+            <p class="mt-1 text-sm text-slate-500">ส่ง ETH เข้า Smart Contract</p>
+          </div>
+        </div>
+        <form id="depositForm" class="space-y-4">
+          <label for="depositAmount" class="block text-sm font-semibold text-slate-700">จำนวนเงินที่ต้องการฝาก</label>
+          <div class="relative">
+            <input id="depositAmount" type="number" min="0" step="any" placeholder="0.01" required
+              class="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 pr-16 text-lg font-semibold outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" />
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">ETH</span>
+          </div>
+          <p class="text-xs leading-5 text-slate-400">การฝากต้องจ่าย Network Gas Fee เพิ่มเติม</p>
+          <button id="depositBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">
+            Deposit ETH <span aria-hidden="true">→</span>
+          </button>
+        </form>
+      </div>
+
+      <div class="glass rounded-3xl border border-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+        <div class="mb-6 flex items-start gap-4">
+          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+            <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19V5m-7 7h14"/><path d="M5 8V5h14v3M5 16v3h14v-3"/></svg>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold">ถอน ETH</h2>
+            <p class="mt-1 text-sm text-slate-500">โอน ETH กลับไปยัง Wallet ของคุณ</p>
+          </div>
+        </div>
+        <form id="withdrawForm" class="space-y-4">
+          <label for="withdrawAmount" class="block text-sm font-semibold text-slate-700">จำนวนเงินที่ต้องการถอน</label>
+          <div class="relative">
+            <input id="withdrawAmount" type="number" min="0" step="any" placeholder="0.01" required
+              class="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 pr-16 text-lg font-semibold outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" />
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">ETH</span>
+          </div>
+          <p class="text-xs leading-5 text-slate-400">ถอนจากยอดที่ Wallet นี้ฝากไว้ใน Contract เท่านั้น</p>
+          <button id="withdrawBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+            Withdraw ETH <span aria-hidden="true">→</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <section class="mt-6 glass rounded-2xl border border-white p-5 shadow-sm sm:flex sm:items-center sm:justify-between">
+      <div>
+        <h3 class="font-bold">ตรวจสอบยอดเงิน</h3>
+        <p class="mt-1 text-sm text-slate-500">เรียก checkBalance() จาก Smart Contract อีกครั้ง</p>
+      </div>
+      <button id="refreshBtn" class="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-slate-50 sm:mt-0">
+        Refresh Balance
+      </button>
+    </section>
+
+
+    <section class="mt-6 glass rounded-3xl border border-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+      <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 class="text-xl font-bold">ประวัติธุรกรรม</h2>
+          <p class="mt-1 text-sm text-slate-500">รายการฝาก/ถอนของ Wallet นี้ จาก Event บน Smart Contract</p>
+        </div>
+        <button id="historyRefreshBtn" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-slate-50">
+          รีเฟรชประวัติ
+        </button>
+      </div>
+
+      <div class="mb-6 grid gap-3 sm:grid-cols-3">
+        <div class="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+          <p class="text-xs font-medium text-emerald-700">ฝากทั้งหมด</p>
+          <p class="mt-1 text-xl font-bold text-emerald-800"><span id="totalDeposit">—</span> <span class="text-sm font-semibold">ETH</span></p>
+        </div>
+        <div class="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+          <p class="text-xs font-medium text-blue-700">ถอนทั้งหมด</p>
+          <p class="mt-1 text-xl font-bold text-blue-800"><span id="totalWithdraw">—</span> <span class="text-sm font-semibold">ETH</span></p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white/70 p-4">
+          <p class="text-xs font-medium text-slate-500">จำนวนรายการ</p>
+          <p class="mt-1 text-xl font-bold text-slate-800"><span id="totalCount">—</span> <span class="text-sm font-semibold">รายการ</span></p>
+        </div>
+      </div>
+
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="inline-flex rounded-xl bg-slate-100 p-1" role="tablist">
+          <button data-view="recent" class="view-tab rounded-lg px-4 py-2 text-sm font-semibold transition">ล่าสุด</button>
+          <button data-view="all" class="view-tab rounded-lg px-4 py-2 text-sm font-semibold transition">ประวัติทั้งหมด</button>
+        </div>
+        <div class="flex gap-2">
+          <button data-filter="all" class="filter-chip rounded-full border px-3.5 py-1.5 text-xs font-semibold transition">ทั้งหมด</button>
+          <button data-filter="Deposit" class="filter-chip rounded-full border px-3.5 py-1.5 text-xs font-semibold transition">ฝาก</button>
+          <button data-filter="Withdraw" class="filter-chip rounded-full border px-3.5 py-1.5 text-xs font-semibold transition">ถอน</button>
+        </div>
+      </div>
+
+      <div id="historyList" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <p class="p-6 text-center text-sm text-slate-400">เชื่อมต่อ Wallet เพื่อดูประวัติ</p>
+      </div>
+      <div class="mt-4 flex flex-col items-center gap-2">
+        <button id="loadMoreBtn" class="hidden rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold transition hover:bg-slate-50">โหลดเพิ่ม</button>
+        <p id="historyNote" class="text-center text-xs text-slate-400"></p>
+      </div>
+    </section>
+
+    <div id="status" role="status" aria-live="polite" class="mt-6 hidden rounded-2xl border p-4 text-sm leading-6"></div>
+
+    <footer class="mt-8 flex flex-col gap-2 border-t border-slate-200 pt-5 text-xs leading-5 text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+      <p>Demo project · Sepolia testnet · ไม่ใช่เงินจริง</p>
+      <a href="https://sepolia.etherscan.io/" target="_blank" rel="noreferrer" class="font-semibold text-slate-500 underline decoration-slate-300 underline-offset-4 hover:text-slate-800">เปิด Sepolia Etherscan ↗</a>
+    </footer>
+  </main>
+
+  <script>
+    // 1) เปลี่ยนเป็น Address ของ Bank Contract ที่ Deploy บน Sepolia
+    const CONTRACT_ADDRESS = "0x0105D592faC474ddcBb5bBB07f201961392436a4";
+
+    // 2) ABI เฉพาะฟังก์ชันที่ frontend ใช้
+    const CONTRACT_ABI = [
+      "function deposit() payable",
+      "function withdraw(uint256 amount)",
+      "function checkBalance() view returns (uint256 balance)",
+      "event Deposit(address indexed owner, uint256 amount)",
+      "event Withdraw(address indexed owner, uint256 amount)"
+    ];
+
+    const SEPOLIA_CHAIN_ID = 11155111n;
+
+    // ใส่เลข block ที่ Deploy Contract (ดูได้จาก Etherscan) เพื่อให้ดึงประวัติย้อนหลังเร็วและครบ
+    // ถ้าไม่รู้ ปล่อย 0 ไว้ได้ ระบบจะลองดึงทั้งหมดก่อน แล้วค่อยสแกนย้อนหลังเป็นช่วงๆ
+    const DEPLOY_BLOCK = 0;
+    const MAX_FALLBACK_BLOCKS = 300000; // เพดานการสแกนย้อนหลังกรณี RPC จำกัดช่วง block
+
+    let provider, signer, contract, account;
+    let sessionKey = null;       // account:chainId ของ session ปัจจุบัน
+    let suppressEvents = false;  // กัน event ซ้อนตอนกำลังเชื่อมต่อ/สลับ network
+    let blockTimer = null;
+
+    const $ = (id) => document.getElementById(id);
+    const connectBtn = $("connectBtn");
+    const statusBox = $("status");
+
+    function showStatus(message, type = "info", link = "") {
+      const styles = {
+        info: "border-blue-200 bg-blue-50 text-blue-800",
+        success: "border-emerald-200 bg-emerald-50 text-emerald-800",
+        error: "border-rose-200 bg-rose-50 text-rose-800",
+        warning: "border-amber-200 bg-amber-50 text-amber-900"
+      };
+      statusBox.className = `mt-6 rounded-2xl border p-4 text-sm leading-6 ${styles[type] || styles.info}`;
+      statusBox.replaceChildren();
+      const text = document.createElement("p");
+      text.textContent = message;
+      statusBox.appendChild(text);
+      if (link) {
+        const a = document.createElement("a");
+        a.href = link;
+        a.target = "_blank";
+        a.rel = "noreferrer";
+        a.textContent = "ดู Transaction บน Etherscan ↗";
+        a.className = "mt-2 inline-block font-semibold underline underline-offset-4";
+        statusBox.appendChild(a);
+      }
+    }
+
+    function ensureConfigured() {
+      if (!ethers.isAddress(CONTRACT_ADDRESS) || CONTRACT_ADDRESS === ethers.ZeroAddress) {
+        throw new Error("กรุณาใส่ Address ของ Bank Contract ที่ Deploy บน Sepolia ในตัวแปร CONTRACT_ADDRESS ก่อน");
+      }
+    }
+
+    // ---------- Network / Session ----------
+    async function currentChainId() {
+      return BigInt(await window.ethereum.request({ method: "eth_chainId" }));
+    }
+
+    function buildSigner() {
+      return (async () => {
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+        account = await signer.getAddress();
+      })();
+    }
+
+    // สลับไป Sepolia (ถ้ายังไม่ได้อยู่) แล้วสร้าง provider/signer ใหม่ทันที
+    // เพื่อไม่ต้องกด Connect ซ้ำ (เดิมหน้าเว็บ reload ตอน chainChanged ทำให้ state หาย)
+    async function ensureSepolia() {
+      if ((await currentChainId()) === SEPOLIA_CHAIN_ID) return;
+
+      suppressEvents = true;
+      try {
+        try {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: "0xaa36a7" }]
+          });
+        } catch (switchError) {
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [{
+                chainId: "0xaa36a7",
+                chainName: "Sepolia",
+                nativeCurrency: { name: "Sepolia ETH", symbol: "ETH", decimals: 18 },
+                rpcUrls: ["https://rpc.sepolia.org"],
+                blockExplorerUrls: ["https://sepolia.etherscan.io"]
+              }]
+            });
+          } else {
+            throw switchError;
+          }
+        }
+        if ((await currentChainId()) !== SEPOLIA_CHAIN_ID) {
+          throw new Error("กรุณาเลือก Sepolia ใน MetaMask แล้วลองอีกครั้ง");
+        }
+        await buildSigner();
+      } finally {
+        suppressEvents = false;
+      }
+    }
+
+    function setConnectBtn(mode) {
+      connectBtn.classList.remove("bg-slate-900", "hover:bg-slate-700", "bg-emerald-700", "hover:bg-emerald-800");
+      if (mode === "connected") {
+        connectBtn.textContent = "Wallet Connected";
+        connectBtn.classList.add("bg-emerald-700", "hover:bg-emerald-800");
+      } else {
+        connectBtn.textContent = mode === "wrong" ? "Switch to Sepolia" : "Connect Wallet";
+        connectBtn.classList.add("bg-slate-900", "hover:bg-slate-700");
+      }
+    }
+
+    function resetUI() {
+      sessionKey = null; contract = signer = account = null;
+      clearInterval(blockTimer);
+      $("walletAddress").textContent = "ยังไม่ได้เชื่อมต่อ";
+      $("walletAddress").title = "";
+      $("networkLabel").textContent = "กรุณาเชื่อมต่อ MetaMask";
+      $("networkName").textContent = "Not connected";
+      $("networkDot").className = "h-2.5 w-2.5 rounded-full bg-slate-300";
+      $("balance").textContent = "—";
+      $("latestBlock").textContent = "—";
+      setConnectBtn("idle");
+      resetHistory();
+    }
+
+    // ตั้งค่า UI + โหลดข้อมูลทั้งหมดจาก session ปัจจุบัน (ใช้ซ้ำได้ ไม่ต้อง reload หน้า)
+    async function setupSession() {
+      const chainId = await currentChainId();
+      const accounts = await window.ethereum.request({ method: "eth_accounts" });
+      if (!accounts.length) { resetUI(); return false; }
+      sessionKey = `${accounts[0].toLowerCase()}:${chainId}`;
+
+      if (chainId !== SEPOLIA_CHAIN_ID) {
+        contract = signer = null;
+        $("walletAddress").textContent = `${accounts[0].slice(0, 8)}...${accounts[0].slice(-6)}`;
+        $("networkName").textContent = "Wrong network";
+        $("networkDot").className = "h-2.5 w-2.5 rounded-full bg-amber-500";
+        $("networkLabel").textContent = "กรุณาสลับเป็น Sepolia";
+        setConnectBtn("wrong");
+        resetHistory();
+        return false;
+      }
+
+      await buildSigner();
+      $("walletAddress").textContent = `${account.slice(0, 8)}...${account.slice(-6)}`;
+      $("walletAddress").title = account;
+      $("networkName").textContent = "Sepolia";
+      $("networkDot").className = "h-2.5 w-2.5 rounded-full bg-emerald-500";
+      $("networkLabel").textContent = "Wallet connected";
+      setConnectBtn("connected");
+
+      startBlockPolling();
+      await Promise.all([refreshBalance(), loadHistory()]);
+      return true;
+    }
+
+    async function connectWallet() {
+      suppressEvents = true;
+      try {
+        if (!window.ethereum) {
+          showStatus("ไม่พบ MetaMask กรุณาติดตั้ง MetaMask แล้วเปิดหน้านี้ใหม่", "error");
+          return;
+        }
+        ensureConfigured();
+        connectBtn.disabled = true;
+
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        suppressEvents = false;
+        await ensureSepolia();           // สลับ network + สร้าง signer ใหม่ (ไม่ reload)
+        suppressEvents = true;
+        const ok = await setupSession();
+        if (ok) showStatus("เชื่อมต่อ Wallet สำเร็จ พร้อมใช้งานบน Sepolia", "success");
+      } catch (error) {
+        showStatus(error.shortMessage || error.message || "เชื่อมต่อ Wallet ไม่สำเร็จ", "error");
+      } finally {
+        connectBtn.disabled = false;
+        setTimeout(() => { suppressEvents = false; }, 500);
+      }
+    }
+
+    // sync เมื่อ user เปลี่ยน account / network ใน MetaMask โดยไม่ reload หน้า
+    async function syncSession() {
+      if (suppressEvents) return;
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (!accounts.length) { resetUI(); return; }
+        const key = `${accounts[0].toLowerCase()}:${await currentChainId()}`;
+        if (key === sessionKey) return;
+        await setupSession();
+      } catch (error) {
+        showStatus(error.shortMessage || error.message || "อัปเดตสถานะ Wallet ไม่สำเร็จ", "error");
+      }
+    }
+
+    function startBlockPolling() {
+      clearInterval(blockTimer);
+      const tick = async () => {
+        try {
+          if (!provider) return;
+          $("latestBlock").textContent = "#" + (await provider.getBlockNumber()).toLocaleString("en-US");
+        } catch (_) { /* ข้ามรอบนี้ */ }
+      };
+      tick();
+      blockTimer = setInterval(tick, 12000);
+    }
+
+    // ---------- Balance ----------
+    function fmtEth(wei) {
+      return Number(ethers.formatEther(wei)).toLocaleString("en-US", { maximumFractionDigits: 8 });
+    }
+
+    async function refreshBalance() {
+      try {
+        if (!contract) throw new Error("กรุณา Connect Wallet ก่อน");
+        await ensureSepolia();
+        $("balance").textContent = fmtEth(await contract.checkBalance());
+      } catch (error) {
+        showStatus(error.shortMessage || error.message || "อ่านยอดเงินไม่สำเร็จ", "error");
+      }
+    }
+
+    // ---------- History ----------
+    const RECENT_COUNT = 5;
+    const PAGE_SIZE = 20;
+    let historyItems = [];        // รายการทั้งหมด เรียงใหม่ -> เก่า
+    let historyView = "recent";   // recent | all
+    let historyFilter = "all";    // all | Deposit | Withdraw
+    let visibleCount = PAGE_SIZE;
+    let historyPartial = false;
+    let renderToken = 0;
+    const blockTimes = new Map(); // blockNumber -> timestamp
+
+    function resetHistory() {
+      historyItems = [];
+      historyPartial = false;
+      $("totalDeposit").textContent = $("totalWithdraw").textContent = $("totalCount").textContent = "—";
+      $("historyList").innerHTML = '<p class="p-6 text-center text-sm text-slate-400">เชื่อมต่อ Wallet เพื่อดูประวัติ</p>';
+      $("loadMoreBtn").classList.add("hidden");
+      $("historyNote").textContent = "";
+    }
+
+    async function queryAllLogs(owner) {
+      const latest = await provider.getBlockNumber();
+      const filters = [contract.filters.Deposit(owner), contract.filters.Withdraw(owner)];
+      const from = Math.max(DEPLOY_BLOCK, 0);
+
+      // 1) พยายามดึงทั้งช่วงในครั้งเดียว
+      try {
+        const res = await Promise.all(filters.map((f) => contract.queryFilter(f, from, latest)));
+        return { logs: res.flat(), partial: false };
+      } catch (_) { /* RPC จำกัดช่วง -> ไปแบบแบ่งช่วง */ }
+
+      // 2) fallback: สแกนย้อนหลังทีละช่วง (ลดขนาดช่วงอัตโนมัติถ้ายังโดนจำกัด)
+      const floor = Math.max(from, latest - MAX_FALLBACK_BLOCKS);
+      let chunk = 10000, end = latest;
+      const logs = [];
+      while (end >= floor) {
+        const begin = Math.max(floor, end - chunk + 1);
+        try {
+          for (const f of filters) logs.push(...(await contract.queryFilter(f, begin, end)));
+          end = begin - 1;
+        } catch (err) {
+          if (chunk <= 500) throw err;
+          chunk = Math.floor(chunk / 2);
+        }
+      }
+      return { logs, partial: floor > from };
+    }
+
+    async function loadHistory() {
+      if (!contract || !account) return;
+      const list = $("historyList");
+      list.innerHTML = '<p class="p-6 text-center text-sm text-slate-400">กำลังโหลดประวัติ...</p>';
+      $("historyNote").textContent = "";
+      try {
+        const { logs, partial } = await queryAllLogs(account);
+        historyPartial = partial;
+        historyItems = logs
+          .map((l) => ({
+            type: l.fragment.name,           // Deposit | Withdraw
+            amount: l.args.amount,
+            block: l.blockNumber,
+            index: l.index,
+            hash: l.transactionHash
+          }))
+          .sort((a, b) => b.block - a.block || b.index - a.index);
+
+        const sum = (t) => historyItems.filter((i) => i.type === t).reduce((s, i) => s + i.amount, 0n);
+        $("totalDeposit").textContent = fmtEth(sum("Deposit"));
+        $("totalWithdraw").textContent = fmtEth(sum("Withdraw"));
+        $("totalCount").textContent = historyItems.length.toLocaleString("en-US");
+
+        visibleCount = PAGE_SIZE;
+        await renderHistory();
+      } catch (error) {
+        list.innerHTML = "";
+        $("historyNote").textContent = "โหลดประวัติไม่สำเร็จ: " + (error.shortMessage || error.message);
+      }
+    }
+
+    async function loadBlockTimes(items) {
+      const missing = [...new Set(items.map((i) => i.block))].filter((b) => !blockTimes.has(b));
+      for (let i = 0; i < missing.length; i += 6) {
+        await Promise.all(missing.slice(i, i + 6).map(async (b) => {
+          try { blockTimes.set(b, (await provider.getBlock(b)).timestamp); } catch (_) { /* แสดง — แทน */ }
+        }));
+      }
+    }
+
+    function fmtTime(block) {
+      const ts = blockTimes.get(block);
+      if (!ts) return "—";
+      return new Date(ts * 1000).toLocaleString("th-TH-u-ca-gregory", { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    function rowHtml(item) {
+      const dep = item.type === "Deposit";
+      const badge = dep ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700";
+      const amountCls = dep ? "text-emerald-600" : "text-blue-600";
+      const arrow = dep ? "M12 5v14m-7-7h14" : "M5 12h14";
+      return `
+        <div class="flex items-center gap-3 px-4 py-3.5 sm:gap-4 sm:px-5">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${badge}">
+            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="${arrow}"/></svg>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold">${dep ? "ฝาก" : "ถอน"}</p>
+            <p class="truncate text-xs text-slate-400">${fmtTime(item.block)} · Block <span class="font-mono">#${item.block.toLocaleString("en-US")}</span></p>
+          </div>
+          <div class="text-right">
+            <p class="text-sm font-bold ${amountCls}">${dep ? "+" : "−"}${fmtEth(item.amount)} ETH</p>
+            <a href="https://sepolia.etherscan.io/tx/${item.hash}" target="_blank" rel="noreferrer"
+               class="font-mono text-xs text-slate-400 underline decoration-slate-300 underline-offset-2 hover:text-slate-700">${item.hash.slice(0, 8)}…${item.hash.slice(-4)} ↗</a>
+          </div>
+        </div>`;
+    }
+
+    async function renderHistory() {
+      const token = ++renderToken;
+      const filtered = historyItems.filter((i) => historyFilter === "all" || i.type === historyFilter);
+      const limit = historyView === "recent" ? RECENT_COUNT : visibleCount;
+      const slice = filtered.slice(0, limit);
+
+      await loadBlockTimes(slice);
+      if (token !== renderToken) return; // มีการ render ใหม่แล้ว
+
+      $("historyList").innerHTML = slice.length
+        ? slice.map(rowHtml).join("")
+        : '<p class="p-6 text-center text-sm text-slate-400">ยังไม่มีรายการ</p>';
+
+      const more = historyView === "all" && filtered.length > limit;
+      $("loadMoreBtn").classList.toggle("hidden", !more);
+      $("loadMoreBtn").textContent = `โหลดเพิ่ม (เหลือ ${filtered.length - limit})`;
+
+      $("historyNote").textContent = historyPartial
+        ? `แสดงเฉพาะประมาณ ${MAX_FALLBACK_BLOCKS.toLocaleString("en-US")} block ล่าสุด เพราะ RPC จำกัดช่วงการดึงข้อมูล — ใส่เลข DEPLOY_BLOCK ในโค้ดเพื่อดูย้อนหลังครบ`
+        : "";
+
+      styleTabs();
+    }
+
+    function styleTabs() {
+      document.querySelectorAll(".view-tab").forEach((b) => {
+        const on = b.dataset.view === historyView;
+        b.className = "view-tab rounded-lg px-4 py-2 text-sm font-semibold transition " +
+          (on ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800");
+      });
+      document.querySelectorAll(".filter-chip").forEach((b) => {
+        const on = b.dataset.filter === historyFilter;
+        b.className = "filter-chip rounded-full border px-3.5 py-1.5 text-xs font-semibold transition " +
+          (on ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50");
+      });
+    }
+
+    // ---------- Deposit / Withdraw ----------
+    async function submitTransaction(kind, amountText) {
+      try {
+        if (!contract || !signer) throw new Error("กรุณา Connect Wallet ก่อน");
+        await ensureSepolia();
+
+        if (!amountText || !Number.isFinite(Number(amountText)) || Number(amountText) <= 0) {
+          throw new Error("กรุณากรอกจำนวน ETH ที่มากกว่า 0");
+        }
+
+        // parseEther แปลง "0.01 ETH" เป็น "10000000000000000 Wei" ให้โดยอัตโนมัติ
+        const amountWei = ethers.parseEther(amountText);
+        const isDeposit = kind === "deposit";
+
+        const button = isDeposit ? $("depositBtn") : $("withdrawBtn");
+        button.disabled = true;
+        button.textContent = "รอยืนยัน Transaction...";
+
+        let tx;
+        if (isDeposit) {
+          tx = await contract.deposit({ value: amountWei });
+        } else {
+          tx = await contract.withdraw(amountWei);
+        }
+
+        showStatus(`ส่ง Transaction แล้ว: ${tx.hash} — กำลังรอการยืนยัน`, "info",
+          `https://sepolia.etherscan.io/tx/${tx.hash}`);
+
+        const receipt = await tx.wait();
+        if (receipt.status !== 1) throw new Error("Transaction ไม่สำเร็จ");
+
+        showStatus(
+          `${isDeposit ? "ฝาก" : "ถอน"} ${amountText} ETH สำเร็จ`,
+          "success",
+          `https://sepolia.etherscan.io/tx/${tx.hash}`
+        );
+        if (isDeposit) $("depositAmount").value = "";
+        else $("withdrawAmount").value = "";
+        await Promise.all([refreshBalance(), loadHistory()]);
+      } catch (error) {
+        const message = error.code === "ACTION_REJECTED"
+          ? "คุณยกเลิก Transaction ใน Wallet"
+          : (error.reason || error.shortMessage || error.message || "Transaction ไม่สำเร็จ");
+        showStatus(message, "error");
+      } finally {
+        $("depositBtn").disabled = false;
+        $("depositBtn").innerHTML = 'Deposit ETH <span aria-hidden="true">→</span>';
+        $("withdrawBtn").disabled = false;
+        $("withdrawBtn").innerHTML = 'Withdraw ETH <span aria-hidden="true">→</span>';
+      }
+    }
+
+    // ---------- Events ----------
+    connectBtn.addEventListener("click", connectWallet);
+    $("refreshBtn").addEventListener("click", refreshBalance);
+    $("historyRefreshBtn").addEventListener("click", loadHistory);
+    $("loadMoreBtn").addEventListener("click", () => { visibleCount += PAGE_SIZE; renderHistory(); });
+    document.querySelectorAll(".view-tab").forEach((b) =>
+      b.addEventListener("click", () => { historyView = b.dataset.view; renderHistory(); }));
+    document.querySelectorAll(".filter-chip").forEach((b) =>
+      b.addEventListener("click", () => { historyFilter = b.dataset.filter; visibleCount = PAGE_SIZE; renderHistory(); }));
+    $("depositForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitTransaction("deposit", $("depositAmount").value.trim());
+    });
+    $("withdrawForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitTransaction("withdraw", $("withdrawAmount").value.trim());
+    });
+
+    if (window.ethereum) {
+      // ไม่ reload หน้าอีกต่อไป — แค่ sync state ใหม่
+      window.ethereum.on("accountsChanged", syncSession);
+      window.ethereum.on("chainChanged", syncSession);
+
+      // เคยอนุญาตเว็บนี้แล้ว -> เชื่อมต่ออัตโนมัติ (ไม่เด้ง popup)
+      (async () => {
+        try {
+          ensureConfigured();
+          const accounts = await window.ethereum.request({ method: "eth_accounts" });
+          if (accounts.length) await setupSession();
+        } catch (_) { /* ปล่อยให้ผู้ใช้กด Connect เอง */ }
+      })();
+    }
+
+    styleTabs();
+  </script>
+</body>
+</html>
