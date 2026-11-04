@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bank dApp | Sepolia</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['"LINE Seed Sans TH"', 'system-ui', 'sans-serif'] } } }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.14.0/dist/ethers.umd.min.js"></script>
+  <style>
+    /* วางไฟล์ LINESeedSansTH_W_Rg.woff2 ไว้โฟลเดอร์เดียวกับ index.html */
+    @font-face {
+      font-family: "LINE Seed Sans TH";
+      src: url("./LINESeedSansTH_W_Rg.woff2") format("woff2");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    body {
+      font-family: "LINE Seed Sans TH", system-ui, -apple-system, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 10% 5%, rgba(16,185,129,.12), transparent 28rem),
+        radial-gradient(circle at 90% 20%, rgba(59,130,246,.10), transparent 28rem),
+        #f8fafc;
+    }
+    .glass { background: rgba(255,255,255,.82); backdrop-filter: blur(14px); }
+  </style>
+</head>
+<body class="min-h-screen text-slate-900 antialiased">
+  <main class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-14">
+    <header class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+          <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+          Ethereum Sepolia Testnet
+        </div>
+        <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Bank <span class="text-emerald-600">dApp</span></h1>
+        <p class="mt-2 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
+          <span class="text-black">Lab 7 Week 10 </span> โดย สามารถ ฝาก ถอน และตรวจสอบยอด ETH ด้วย Smart Contract
+        </p>
+        <p class="mt-2 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
+          นาย รวิภาส ทัดแก้ว 66060564 L003
+        </p>
+      </div>
+      <button id="connectBtn" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60">
+        Demo Wallet
+      </button>
+    </header>
+
+    <section class="mb-6 grid gap-4 sm:grid-cols-3">
+      <div class="glass rounded-2xl border border-white p-5 shadow-sm">
+        <p class="text-sm font-medium text-slate-500">ยอดเงินในบัญชี Contract</p>
+        <div class="mt-3 flex items-baseline gap-2">
+          <span id="balance" class="text-3xl font-bold tracking-tight">—</span>
+          <span class="font-semibold text-slate-500">ETH</span>
+        </div>
+        <p class="mt-2 text-xs text-slate-400">ยอดของบัญชี Demo ภายใน Contract</p>
+      </div>
+      <div class="glass rounded-2xl border border-white p-5 shadow-sm">
+        <p class="text-sm font-medium text-slate-500">Wallet ที่เชื่อมต่อ</p>
+        <p id="walletAddress" class="mt-4 break-all font-mono text-sm font-semibold text-slate-700">กำลังเริ่มต้น</p>
+        <p id="networkLabel" class="mt-2 text-xs text-slate-400">ใช้ Demo Private Key</p>
+      </div>
+      <div class="glass rounded-2xl border border-white p-5 shadow-sm">
+        <p class="text-sm font-medium text-slate-500">Network</p>
+        <div class="mt-3 flex items-center gap-2">
+          <span id="networkDot" class="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+          <span id="networkName" class="text-lg font-bold">Sepolia Demo</span>
+        </div>
+        <p class="mt-2 text-xs text-slate-400">ใช้ Sepolia test ETH เท่านั้น</p>
+        <p class="mt-1 text-xs text-slate-400">Latest block: <span id="latestBlock" class="font-mono font-semibold text-slate-600">—</span></p>
+      </div>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-2">
+      <div class="glass rounded-3xl border border-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+        <div class="mb-6 flex items-start gap-4">
+          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+            <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14m-7-7h14"/><path d="M5 8V5h14v3M5 16v3h14v-3"/></svg>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold">ฝาก ETH</h2>
+            <p class="mt-1 text-sm text-slate-500">ส่ง ETH เข้า Smart Contract</p>
+          </div>
+        </div>
+        <form id="depositForm" class="space-y-4">
+          <label for="depositAmount" class="block text-sm font-semibold text-slate-700">จำนวนเงินที่ต้องการฝาก</label>
+          <div class="relative">
+            <input id="depositAmount" type="number" min="0" step="any" placeholder="0.01" required
+              class="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 pr-16 text-lg font-semibold outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" />
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">ETH</span>
+          </div>
+          <p class="text-xs leading-5 text-slate-400">การฝากต้องจ่าย Network Gas Fee เพิ่มเติม</p>
+          <button id="depositBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">
+            Deposit ETH <span aria-hidden="true">→</span>
+          </button>
+        </form>
+      </div>
+
+      <div class="glass rounded-3xl border border-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+        <div class="mb-6 flex items-start gap-4">
+          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+            <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19V5m-7 7h14"/><path d="M5 8V5h14v3M5 16v3h14v-3"/></svg>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold">ถอน ETH</h2>
+            <p class="mt-1 text-sm text-slate-500">โอน ETH กลับไปยัง Wallet ของคุณ</p>
+          </div>
+        </div>
+        <form id="withdrawForm" class="space-y-4">
+          <label for="withdrawAmount" class="block text-sm font-semibold text-slate-700">จำนวนเงินที่ต้องการถอน</label>
+          <div class="relative">
+            <input id="withdrawAmount" type="number" min="0" step="any" placeholder="0.01" required
+              class="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 pr-16 text-lg font-semibold outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" />
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">ETH</span>
+          </div>
+          <p class="text-xs leading-5 text-slate-400">ถอนจากยอดที่ Wallet นี้ฝากไว้ใน Contract เท่านั้น</p>
+          <button id="withdrawBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+            Withdraw ETH <span aria-hidden="true">→</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <section class="mt-6 glass rounded-2xl border border-white p-5 shadow-sm sm:flex sm:items-center sm:justify-between">
+      <div>
+        <h3 class="font-bold">ตรวจสอบยอดเงิน</h3>
+        <p class="mt-1 text-sm text-slate-500">เรียก checkBalance() จาก Smart Contract อีกครั้ง</p>
+      </div>
+      <button id="refreshBtn" class="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-slate-50 sm:mt-0">
+        Refresh Balance
+      </button>
+    </section>
+
+
+    <section class="mt-6 glass rounded-3xl border border-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+      <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 class="text-xl font-bold">ประวัติธุรกรรม</h2>
+          <p class="mt-1 text-sm text-slate-500">รายการฝาก/ถอนของบัญชี Demo จาก Event บน Smart Contract</p>
+        </div>
+        <button id="historyRefreshBtn" class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-slate-50">
+          รีเฟรชประวัติ
+        </button>
+      </div>
+
+      <div class="mb-6 grid gap-3 sm:grid-cols-3">
+        <div class="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+          <p class="text-xs font-medium text-emerald-700">ฝากทั้งหมด</p>
+          <p class="mt-1 text-xl font-bold text-emerald-800"><span id="totalDeposit">—</span> <span class="text-sm font-semibold">ETH</span></p>
+        </div>
+        <div class="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+          <p class="text-xs font-medium text-blue-700">ถอนทั้งหมด</p>
+          <p class="mt-1 text-xl font-bold text-blue-800"><span id="totalWithdraw">—</span> <span class="text-sm font-semibold">ETH</span></p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white/70 p-4">
+          <p class="text-xs font-medium text-slate-500">จำนวนรายการ</p>
+          <p class="mt-1 text-xl font-bold text-slate-800"><span id="totalCount">—</span> <span class="text-sm font-semibold">รายการ</span></p>
+        </div>
+      </div>
+
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="inline-flex rounded-xl bg-slate-100 p-1" role="tablist">
+          <button data-view="recent" class="view-tab rounded-lg px-4 py-2 text-sm font-semibold transition">ล่าสุด</button>
+          <button data-view="all" class="view-tab rounded-lg px-4 py-2 text-sm font-semibold transition">ประวัติทั้งหมด</button>
+        </div>
+        <div class="flex gap-2">
+          <button data-filter="all" class="filter-chip rounded-full border px-3.5 py-1.5 text-xs font-semibold transition">ทั้งหมด</button>
+          <button data-filter="Deposit" class="filter-chip rounded-full border px-3.5 py-1.5 text-xs font-semibold transition">ฝาก</button>
+          <button data-filter="Withdraw" class="filter-chip rounded-full border px-3.5 py-1.5 text-xs font-semibold transition">ถอน</button>
+        </div>
+      </div>
+
+      <div id="historyList" class="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <p class="p-6 text-center text-sm text-slate-400">กำลังโหลดข้อมูลบัญชี Demo</p>
+      </div>
+      <div class="mt-4 flex flex-col items-center gap-2">
+        <button id="loadMoreBtn" class="hidden rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold transition hover:bg-slate-50">โหลดเพิ่ม</button>
+        <p id="historyNote" class="text-center text-xs text-slate-400"></p>
+      </div>
+    </section>
+
+    <div id="status" role="status" aria-live="polite" class="mt-6 hidden rounded-2xl border p-4 text-sm leading-6"></div>
+
+    <footer class="mt-8 flex flex-col gap-2 border-t border-slate-200 pt-5 text-xs leading-5 text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+      <p>Demo project · Sepolia testnet</p>
+      <a href="https://sepolia.etherscan.io/" target="_blank" rel="noreferrer" class="font-semibold text-slate-500 underline decoration-slate-300 underline-offset-4 hover:text-slate-800">เปิด Sepolia Etherscan ↗</a>
+    </footer>
+  </main>
+
+  <script>
+
+    const INFURA_URL = "https://sepolia.infura.io/v3/2d64a40504be4c2c9cad056ac01dc712";
+    const PRIVATE_KEY = "e9301b66d1bf7c66e44c5cf82d0ff085394b4f49c1daa51093047e66fb9036c7"; // 0x ตามด้วยเลขฐาน 16 จำนวน 64 ตัว
+    
+    const CONTRACT_ADDRESS = "0x0105D592faC474ddcBb5bBB07f201961392436a4";
+    const DEPLOY_BLOCK = 0; 
+    const MAX_HISTORY_BLOCKS = 100000; 
+    const HISTORY_CHUNK = 5000;
+    const CONTRACT_ABI = [
+      "function deposit() payable",
+      "function withdraw(uint256 amount)",
+      "function checkBalance() view returns (uint256 balance)",
+      "event Deposit(address indexed owner, uint256 amount)",
+      "event Withdraw(address indexed owner, uint256 amount)"
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    const rpc = new ethers.JsonRpcProvider(INFURA_URL, 11155111, { staticNetwork: true });
+    let wallet = null, contract = null, readContract = null, blockTimer = null;
+    let historyItems = [], historyView = "recent", historyFilter = "all", visibleCount = 20;
+    let historyPartial = false, renderToken = 0, loadingHistory = false;
+    const blockTimes = new Map();
+    const RECENT_COUNT = 5, PAGE_SIZE = 20;
+
+    function showStatus(message, type = "info", hash = "") {
+      const themes = {
+        info: "border-blue-200 bg-blue-50 text-blue-800",
+        success: "border-emerald-200 bg-emerald-50 text-emerald-800",
+        error: "border-rose-200 bg-rose-50 text-rose-800",
+        warning: "border-amber-200 bg-amber-50 text-amber-900"
+      };
+      const el = $("status");
+      el.className = `mt-6 rounded-2xl border p-4 text-sm leading-6 ${themes[type]}`;
+      el.replaceChildren();
+      const text = document.createElement("p"); text.textContent = message; el.appendChild(text);
+      if (hash) {
+        const a = document.createElement("a");
+        a.href = `https://sepolia.etherscan.io/tx/${hash}`;
+        a.target = "_blank"; a.rel = "noopener noreferrer";
+        a.className = "mt-2 inline-block font-semibold underline underline-offset-4";
+        a.textContent = "ดูธุรกรรมบน Sepolia Etherscan ↗";
+        el.appendChild(a);
+      }
+    }
+    const fmtEth = (wei) => Number(ethers.formatEther(wei)).toLocaleString("en-US", { maximumFractionDigits: 8 });
+    const fmtTime = (block) => blockTimes.has(block)
+      ? new Date(blockTimes.get(block) * 1000).toLocaleString("th-TH-u-ca-gregory", { dateStyle: "medium", timeStyle: "short" })
+      : "—";
+
+    async function refreshBalance() {
+      if (!contract) return;
+      try {
+        const [inBank, walletBalance] = await Promise.all([
+          contract.checkBalance(), rpc.getBalance(wallet.address)
+        ]);
+        $("balance").textContent = fmtEth(inBank);
+        $("networkLabel").textContent = `Wallet: ${fmtEth(walletBalance)} SepoliaETH (ใช้จ่าย Gas)`;
+      } catch (err) { showStatus("อ่านยอดเงินไม่สำเร็จ: " + (err.shortMessage || err.message), "error"); }
+    }
+    async function refreshBlock() {
+      try { $("latestBlock").textContent = "#" + (await rpc.getBlockNumber()).toLocaleString("en-US"); }
+      catch (_) { $("latestBlock").textContent = "—"; }
+    }
+
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    async function getLogsWithRetry(filter, from, to) {
+      let attempts = 0;
+      while (true) {
+        try {
+          return await readContract.queryFilter(filter, from, to);
+        } catch (error) {
+          attempts++;
+          const message = (error.shortMessage || error.message || "").toLowerCase();
+          const temporary = /429|rate|limit|timeout|too many|busy|exceed|response size|block range|query returned|internal error/.test(message)
+            || [-32005, -32000, -32603].includes(Number(error?.info?.error?.code));
+          if (!temporary || attempts >= 4) throw error;
+          await delay(Math.min(8000, attempts * 1200));
+        }
+      }
+    }
+
+    async function getHistoryLogs(owner, onProgress) {
+      const latest = await rpc.getBlockNumber();
+      const floor = DEPLOY_BLOCK > 0 ? DEPLOY_BLOCK : Math.max(0, latest - MAX_HISTORY_BLOCKS);
+      const filters = [readContract.filters.Deposit(owner), readContract.filters.Withdraw(owner)];
+      const logs = [];
+      let chunk = HISTORY_CHUNK;
+      let end = latest;
+      while (end >= floor) {
+        const from = Math.max(floor, end - chunk + 1);
+        try {
+          // อ่านทีละประเภทเพื่อลดโอกาสโดน Infura rate limit
+          for (const filter of filters) {
+            logs.push(...await getLogsWithRetry(filter, from, end));
+          }
+          onProgress?.(from, latest, floor, logs.length);
+          end = from - 1;
+          await delay(150);
+        } catch (error) {
+          if (chunk > 250) {
+            chunk = Math.max(250, Math.floor(chunk / 2));
+            continue;
+          }
+          throw new Error(`อ่าน Logs ช่วง Block ${from}-${end} ไม่สำเร็จ: ${error.shortMessage || error.message}`);
+        }
+      }
+      return { logs, partial: DEPLOY_BLOCK === 0 && floor > 0, latest, floor };
+    }
+
+    async function loadHistory() {
+      if (!wallet || !readContract || loadingHistory) return;
+      loadingHistory = true;
+      const button = $("historyRefreshBtn");
+      button.disabled = true;
+      $("historyList").innerHTML = '<p class="p-6 text-center text-sm text-slate-400">กำลังอ่าน Event จาก Infura...</p>';
+      $("historyNote").textContent = "กำลังสแกน Block...";
+      try {
+        const { logs, partial, latest, floor } = await getHistoryLogs(wallet.address, (from, top, bottom, found) => {
+          $("historyNote").textContent = `กำลังสแกน Block ${from.toLocaleString("en-US")} - ${top.toLocaleString("en-US")} (พบ ${found} รายการ)`;
+        });
+        historyPartial = partial;
+        historyItems = logs.map((l) => ({
+          type: l.fragment.name, amount: l.args.amount, block: l.blockNumber,
+          index: l.index, hash: l.transactionHash
+        })).sort((a,b) => b.block - a.block || b.index - a.index);
+        const sum = (type) => historyItems.filter(i => i.type === type).reduce((v,i) => v + i.amount, 0n);
+        $("totalDeposit").textContent = fmtEth(sum("Deposit"));
+        $("totalWithdraw").textContent = fmtEth(sum("Withdraw"));
+        $("totalCount").textContent = historyItems.length.toLocaleString("en-US");
+        visibleCount = PAGE_SIZE;
+        await renderHistory();
+        if (historyItems.length === 0) {
+          $("historyNote").textContent = `ไม่พบ Event ของ Wallet ${wallet.address.slice(0,8)}… ใน Block ${floor.toLocaleString("en-US")} - ${latest.toLocaleString("en-US")}. หากธุรกรรมเก่ากว่านี้ ให้กำหนด DEPLOY_BLOCK เป็น Block ที่ Deploy Contract`;
+        }
+      } catch(err) {
+        $("historyList").innerHTML = '<p class="p-6 text-center text-sm text-rose-600">อ่านประวัติไม่สำเร็จ</p>';
+        $("historyNote").textContent = err.shortMessage || err.message;
+        showStatus("อ่านประวัติไม่สำเร็จ: " + (err.shortMessage || err.message), "error");
+      } finally {
+        loadingHistory = false;
+        button.disabled = false;
+      }
+    }
+    async function loadBlockTimes(items) {
+      const missing = [...new Set(items.map(i => i.block))].filter(b => !blockTimes.has(b));
+      for (let i=0;i<missing.length;i+=5) {
+        await Promise.all(missing.slice(i,i+5).map(async b => {
+          try { const block = await rpc.getBlock(b); if (block) blockTimes.set(b, block.timestamp); }
+          catch (_) {}
+        }));
+      }
+    }
+    function rowHtml(item) {
+      const dep = item.type === "Deposit";
+      const cl = dep ? "text-emerald-600" : "text-blue-600";
+      return `<div class="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
+        <div class="min-w-0"><p class="text-sm font-semibold">${dep ? "ฝาก" : "ถอน"}</p>
+          <p class="truncate text-xs text-slate-400">${fmtTime(item.block)} · Block #${item.block.toLocaleString("en-US")}</p></div>
+        <div class="shrink-0 text-right"><p class="text-sm font-bold ${cl}">${dep ? "+" : "−"}${fmtEth(item.amount)} ETH</p>
+          <a target="_blank" rel="noopener noreferrer" href="https://sepolia.etherscan.io/tx/${item.hash}"
+             class="text-xs text-slate-400 underline">${item.hash.slice(0,10)}… ↗</a></div></div>`;
+    }
+    async function renderHistory() {
+      const token = ++renderToken;
+      const filtered = historyItems.filter(i => historyFilter === "all" || i.type === historyFilter);
+      const count = historyView === "recent" ? RECENT_COUNT : visibleCount;
+      const selected = filtered.slice(0, count);
+      await loadBlockTimes(selected);
+      if (token !== renderToken) return;
+      $("historyList").innerHTML = selected.length ? selected.map(rowHtml).join("")
+        : '<p class="p-6 text-center text-sm text-slate-400">ไม่มีประวัติในช่วง Block ที่ค้นหา</p>';
+      const more = historyView === "all" && filtered.length > count;
+      $("loadMoreBtn").classList.toggle("hidden", !more);
+      $("loadMoreBtn").textContent = `โหลดเพิ่ม (เหลือ ${filtered.length - count})`;
+      $("historyNote").textContent = historyPartial
+        ? `แสดงประวัติย้อนหลังไม่เกิน ${MAX_HISTORY_BLOCKS.toLocaleString("en-US")} blocks สำหรับ Wallet Demo นี้ หากต้องการครบตั้งแต่ Deploy ให้ใส่ DEPLOY_BLOCK (สามารถดูจาก Sepolia Etherscan)`
+        : `แสดงประวัติทั้งหมดตั้งแต่ Block ${DEPLOY_BLOCK.toLocaleString("en-US")}`;
+      styleTabs();
+    }
+    function styleTabs() {
+      document.querySelectorAll(".view-tab").forEach(b => {
+        const active = b.dataset.view === historyView;
+        b.className = "view-tab rounded-lg px-4 py-2 text-sm font-semibold transition " +
+          (active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800");
+      });
+      document.querySelectorAll(".filter-chip").forEach(b => {
+        const active = b.dataset.filter === historyFilter;
+        b.className = "filter-chip rounded-full border px-3.5 py-1.5 text-xs font-semibold transition " +
+          (active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50");
+      });
+    }
+    async function submitTransaction(type, amountText) {
+      if (!wallet || !contract) return showStatus("ยังไม่ได้ตั้งค่า Demo Wallet", "error");
+      const btn = $(type === "deposit" ? "depositBtn" : "withdrawBtn");
+      try {
+        const amountWei = ethers.parseEther(amountText);
+        if (amountWei <= 0n) throw new Error("กรุณาใส่จำนวน ETH ที่มากกว่า 0");
+        btn.disabled = true; btn.textContent = "กำลังส่ง Transaction...";
+        const tx = type === "deposit"
+          ? await contract.deposit({ value: amountWei })
+          : await contract.withdraw(amountWei);
+        showStatus(`ส่งธุรกรรมแล้ว (${tx.hash}) กำลังรอยืนยัน...`, "info", tx.hash);
+        const receipt = await tx.wait();
+        if (receipt.status !== 1) throw new Error("Transaction ไม่สำเร็จ");
+        showStatus(`${type === "deposit" ? "ฝาก" : "ถอน"} ${amountText} SepoliaETH สำเร็จ`, "success", tx.hash);
+        $(type === "deposit" ? "depositAmount" : "withdrawAmount").value = "";
+        await Promise.all([refreshBalance(), refreshBlock(), loadHistory()]);
+      } catch (err) {
+        showStatus("ทำรายการไม่สำเร็จ: " + (err.shortMessage || err.reason || err.message), "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = type === "deposit" ? "Deposit ETH →" : "Withdraw ETH →";
+      }
+    }
+    async function initDemo() {
+      try {
+        if (INFURA_URL.includes("YOUR_INFURA_API_KEY") || PRIVATE_KEY === "YOUR_DEMO_PRIVATE_KEY") {
+          throw new Error("กรุณาแก้ INFURA_URL และ PRIVATE_KEY ใน HTML ก่อนเปิดใช้งาน");
+        }
+        wallet = new ethers.Wallet(PRIVATE_KEY.trim(), rpc);
+        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, wallet);
+        readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, rpc);
+        const network = await rpc.getNetwork();
+        if (network.chainId !== 11155111n) throw new Error("RPC นี้ไม่ใช่ Ethereum Sepolia");
+        const code = await rpc.getCode(CONTRACT_ADDRESS);
+        if (code === "0x") throw new Error("ไม่พบ Smart Contract ที่ Address นี้บน Sepolia");
+        $("walletAddress").textContent = wallet.address;
+        $("networkName").textContent = "Sepolia";
+        $("networkDot").className = "h-2.5 w-2.5 rounded-full bg-emerald-500";
+        $("connectBtn").textContent = "Demo Wallet Ready";
+        $("connectBtn").disabled = true;
+        await Promise.all([refreshBalance(), refreshBlock()]);
+        blockTimer = setInterval(refreshBlock, 12000);
+        showStatus("Demo Wallet พร้อมใช้งาน กดฝาก/ถอนได้เลย ไม่ต้องใช้ MetaMask", "success");
+        await loadHistory();
+      } catch (err) {
+        $("connectBtn").textContent = "ตั้งค่า Demo ก่อน";
+        showStatus(err.shortMessage || err.message, "error");
+      }
+    }
+    $("connectBtn").addEventListener("click", initDemo);
+    $("refreshBtn").addEventListener("click", refreshBalance);
+    $("historyRefreshBtn").addEventListener("click", loadHistory);
+    $("loadMoreBtn").addEventListener("click", () => { visibleCount += PAGE_SIZE; renderHistory(); });
+    document.querySelectorAll(".view-tab").forEach(b => b.addEventListener("click", () => {
+      historyView = b.dataset.view; renderHistory();
+    }));
+    document.querySelectorAll(".filter-chip").forEach(b => b.addEventListener("click", () => {
+      historyFilter = b.dataset.filter; visibleCount = PAGE_SIZE; renderHistory();
+    }));
+    $("depositForm").addEventListener("submit", e => {
+      e.preventDefault(); submitTransaction("deposit", $("depositAmount").value.trim());
+    });
+    $("withdrawForm").addEventListener("submit", e => {
+      e.preventDefault(); submitTransaction("withdraw", $("withdrawAmount").value.trim());
+    });
+    styleTabs();
+    initDemo();
+  </script>
+</body>
+</html>
