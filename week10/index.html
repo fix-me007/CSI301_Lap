@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#203dcb">
+  <meta name="description" content="SkillTrust Academy — ออกและตรวจสอบใบรับรองดิจิทัลบน Ethereum Sepolia">
+  <title>SkillTrust Academy — Digital Certificates</title>
+  <link rel="preload" href="./LINESeedSansTH_W_Rg.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.5/ethers.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="./config.js" defer></script>
+  <script src="./app.js" defer></script>
+  <style>
+    @font-face { font-family: 'LINE Seed Sans TH'; src: url('./LINESeedSansTH_W_Rg.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+    * { box-sizing: border-box; }
+    body, button, input, select, textarea { font-family: 'LINE Seed Sans TH', system-ui, sans-serif; }
+    body { background: #f5f6fa; color: #19243f; }
+    .panel { border: 1px solid #e7eaf2; border-radius: 1.25rem; background: white; box-shadow: 0 3px 18px #1c2a4d03; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; border-radius: .75rem; padding: .75rem 1rem; font-size: .875rem; font-weight: 600; transition: background .15s; }
+    .primary { background: #304edb; color: white; }
+    .primary:hover:not(:disabled) { background: #253fbc; }
+    .secondary { background: #eef1ff; color: #3047b5; }
+    .secondary:hover:not(:disabled) { background: #e2e8ff; }
+    .outline { border: 1px solid #dde2ed; outline-style: none; background: white; color: #4c5873; }
+    .outline:hover:not(:disabled) { background: #f5f6fa; }
+    .danger { background: #fff0f1; color: #b52c49; }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    .field { width: 100%; min-width: 0; border: 1px solid #dce1ed; border-radius: .75rem; background: white; padding: .8rem .9rem; font-size: .875rem; color: #19243f; }
+    .field:focus { outline: 3px solid #e2e7ff; border-color: #6379e8; }
+    .label { display: block; margin-bottom: .45rem; font-size: .875rem; font-weight: 600; }
+    .badge { display: inline-flex; align-items: center; gap: .35rem; border-radius: 999px; padding: .3rem .65rem; font-size: .7rem; white-space: nowrap; }
+    .nav-item { display: flex; align-items: center; gap: .8rem; width: 100%; padding: .85rem 1rem; border-radius: .8rem; color: #798299; text-align: left; font-size: .9rem; white-space: nowrap; }
+    .nav-item[aria-current="page"] { background: #edf0ff; color: #304edb; font-weight: 600; }
+    .nav-item:hover { background: #f1f3fa; }
+    .nav-symbol { display: grid; width: 1.4rem; place-items: center; font-size: 1.2rem; }
+    .eyebrow { font-size: .65rem; letter-spacing: .18em; font-weight: 600; text-transform: uppercase; }
+    dialog { max-height: 92vh; border: none; padding: 0; border-radius: 1.5rem; color: #19243f; }
+    dialog::backdrop { background: #14204485; backdrop-filter: blur(4px); }
+    :focus-visible { outline: 3px solid #8fa2ff; outline-offset: 3px; }
+    [hidden] { display: none !important; }
+    #qrCode img, #qrCode canvas { max-width: 100%; margin: auto; }
+    @media (prefers-reduced-motion: no-preference) { .view { animation: enter .25s ease-out; } @keyframes enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } } }
+  </style>
+</head>
+<body class="min-h-screen antialiased">
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-white focus:p-3">ข้ามไปเนื้อหา</a>
+  <aside class="border-b border-slate-200 bg-white lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex lg:w-64 lg:flex-col lg:border-b-0 lg:border-r">
+    <a href="#verify" class="flex items-center gap-3 px-6 py-6 lg:py-9" aria-label="SkillTrust หน้าแรก">
+      <span class="grid h-11 w-11 place-items-center rounded-2xl bg-[#304edb] text-white shadow-lg shadow-blue-700/15" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="m3 8 9-5 9 5-9 5-9-5Z" stroke="currentColor" stroke-width="1.6"/><path d="M7 11v6c3 3 7 3 10 0v-6M21 8v8" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+      <span><strong class="block text-xl tracking-tight">SkillTrust<span class="text-[#304edb]">.</span></strong><span class="text-[10px] tracking-[.23em] text-slate-400">ACADEMY</span></span>
+    </a>
+    <p class="eyebrow hidden px-7 pb-4 text-slate-400 lg:block">Certificate workspace</p>
+    <nav aria-label="เมนูหลัก" class="flex gap-1 overflow-x-auto px-3 pb-3 lg:block lg:space-y-2 lg:px-4">
+      <a href="#verify" data-view="verify" class="nav-item" aria-current="page"><span class="nav-symbol" aria-hidden="true">⌕</span>ตรวจสอบใบรับรอง</a>
+      <a href="#dashboard" data-view="dashboard" class="nav-item"><span class="nav-symbol" aria-hidden="true">▦</span>ใบรับรองของฉัน</a>
+      <a href="#courses" data-view="courses" class="nav-item"><span class="nav-symbol" aria-hidden="true">▤</span>หลักสูตรอบรม</a>
+      <a href="#issue" data-view="issue" class="nav-item"><span class="nav-symbol" aria-hidden="true">⊕</span>ออกใบรับรอง</a>
+      <a href="#admin" data-view="admin" class="nav-item"><span class="nav-symbol" aria-hidden="true">⚙</span>จัดการสิทธิ์</a>
+    </nav>
+    <div class="mx-5 mb-6 mt-auto hidden rounded-2xl border border-[#e7ebff] bg-[#f7f8ff] p-4 lg:block"><span class="eyebrow text-[#5168d7]">Privacy by design</span><p class="mt-2 text-sm leading-6 text-slate-500">ความสำเร็จของคุณ<br>ตรวจสอบได้โดยไม่เปิดเผย<br>ข้อมูลส่วนบุคคลบนเชน</p><div class="mt-4 border-t border-indigo-100 pt-3 text-xs text-indigo-500">↗ Powered by Ethereum</div></div>
+  </aside>
+
+  <div class="lg:ml-64">
+    <header class="border-b border-slate-200/80 bg-white/80 px-4 py-4 sm:px-8 lg:px-10">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3"><div><p class="eyebrow text-slate-400">Blockchain digital certificate</p><p class="mt-1 text-sm text-slate-500">เชื่อมั่นในทุกความสำเร็จ</p></div><div class="flex items-center gap-2 sm:gap-3"><span class="badge border border-emerald-100 bg-emerald-50 text-emerald-700"><span aria-hidden="true">●</span> Sepolia Testnet</span><button id="connectBtn" type="button" class="btn primary">เชื่อมต่อ Wallet ↗</button></div></div>
+    </header>
+
+    <main id="main" class="mx-auto max-w-6xl space-y-7 px-4 py-7 sm:px-8 sm:py-9 lg:px-10">
+      <div class="flex flex-wrap items-end justify-between gap-3"><div><p class="eyebrow text-[#6377cb]">SkillTrust Academy / Week 10</p><h1 id="pageTitle" class="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">ตรวจสอบใบรับรองดิจิทัล</h1></div><button id="refreshBtn" type="button" class="btn outline text-xs">↻ รีเฟรชข้อมูล</button></div>
+      <div id="notice" hidden class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900" role="status"></div>
+
+      <section aria-label="ภาพรวมจากบล็อกเชน" class="grid gap-3 sm:grid-cols-3 sm:gap-4">
+        <div class="panel flex items-center gap-4 p-5"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-indigo-50 text-xl text-indigo-500" aria-hidden="true">▤</span><div><p class="text-xs text-slate-500">หลักสูตรทั้งหมด</p><p id="courseTotal" class="mt-1 text-2xl font-semibold">—</p></div></div>
+        <div class="panel flex items-center gap-4 p-5"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-teal-50 text-xl text-teal-600" aria-hidden="true">✧</span><div><p class="text-xs text-slate-500">ใบรับรองที่ออกทั้งหมด</p><p id="certTotal" class="mt-1 text-2xl font-semibold">—</p></div></div>
+        <div class="panel flex items-center gap-4 p-5"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-orange-50 text-xl text-orange-500" aria-hidden="true">◎</span><div class="min-w-0"><p class="text-xs text-slate-500">บทบาท Wallet ของคุณ</p><p id="walletRole" class="mt-1 text-lg font-semibold">ผู้เยี่ยมชม</p></div></div>
+      </section>
+
+      <section id="view-verify" class="view space-y-6" aria-label="ตรวจสอบใบรับรอง">
+        <div class="relative overflow-hidden rounded-3xl bg-[#243ec4] p-7 text-white sm:p-9">
+          <div class="pointer-events-none absolute -right-24 -top-40 h-96 w-96 rounded-full border-[55px] border-white/5"></div>
+          <div class="relative grid items-center gap-8 md:grid-cols-[1fr_230px]"><div><span class="badge border border-white/20 bg-white/10 text-indigo-100">VERIFIABLE CREDENTIALS</span><h2 class="mt-5 text-2xl leading-snug sm:text-3xl">ทุกทักษะมีคุณค่า<br><span class="text-[#bccbff]">ทุกใบรับรองมีหลักฐาน</span></h2><p class="mt-4 max-w-lg text-sm leading-7 text-indigo-100/80">ตรวจสอบแหล่งที่มาและสถานะของใบรับรองจากบล็อกเชน<br class="hidden sm:block"> พร้อมเปรียบเทียบ Hash เพื่อยืนยันว่าข้อมูลไม่ถูกแก้ไข</p><div class="mt-5 flex flex-wrap gap-4 text-xs text-indigo-100"><span>✓ ตรวจสอบได้ทุกคน</span><span>✓ ไม่ต้องเชื่อม Wallet</span><span>✓ ไม่เสียค่า gas ในการอ่าน</span></div></div>
+          <div class="hidden rotate-3 rounded-xl border border-white/30 bg-white/10 p-3 md:block" aria-hidden="true"><div class="rounded-lg bg-[#fcfcff] px-5 py-7 text-center text-[#273d99]"><div class="text-3xl">✧</div><div class="mt-3 text-[9px] tracking-[.2em]">CERTIFICATE OF ACHIEVEMENT</div><div class="mx-auto mt-5 h-1.5 w-24 rounded bg-indigo-100"></div><div class="mx-auto mt-2 h-1 w-32 rounded bg-slate-100"></div><div class="mx-auto my-5 grid h-12 w-12 place-items-center rounded-full border-4 border-double border-[#b99b50] text-xl text-[#b99b50]">✓</div><div class="text-[9px] tracking-widest text-slate-400">SECURED ON BLOCKCHAIN</div></div></div></div>
+        </div>
+        <div class="grid gap-5 xl:grid-cols-[1fr_270px]">
+          <section class="panel p-6 sm:p-7"><div class="flex items-center gap-3"><span class="grid h-10 w-10 place-items-center rounded-xl bg-indigo-50 text-xl text-indigo-600" aria-hidden="true">⌕</span><div><h2 class="text-lg font-semibold">ค้นหาและตรวจสอบ</h2><p class="mt-0.5 text-xs text-slate-400">ใช้รหัสอ้างอิงจากใบรับรองหรือ QR Code</p></div></div>
+            <form id="verifyForm" class="mt-6 space-y-5"><div><label for="verifyId" class="label">รหัสใบรับรอง <span class="text-indigo-500">*</span></label><input id="verifyId" class="field" placeholder="เช่น ST-2026-001" required maxlength="200" autocomplete="off"></div><div><div class="flex flex-wrap items-center justify-between gap-2"><label for="verifyHash" class="label">Document Hash <span class="font-normal text-slate-400">(ไม่บังคับ)</span></label><button type="button" data-hash-target="verifyHash" class="mb-2 text-xs text-indigo-600 hover:underline">คำนวณ Hash จาก PDF / ข้อมูล ↗</button></div><input id="verifyHash" class="field font-mono text-xs" placeholder="0x… (bytes32 / 64 ตัวอักษร hex)" spellcheck="false" autocomplete="off"><p class="mt-2 text-xs leading-5 text-slate-400">ไม่กรอก Hash = ดูสถานะเท่านั้น · ตรวจว่า PDF ไม่ถูกแก้ไข ให้เลือกไฟล์จริงและใช้ salt เดิม</p></div><button id="verifyBtn" type="submit" class="btn primary w-full">ตรวจสอบใบรับรอง <span aria-hidden="true">→</span></button></form>
+            <div id="verifyResult" class="mt-5" aria-live="polite"></div>
+          </section>
+          <aside class="panel p-6"><p class="eyebrow text-indigo-500">How it works</p><h3 class="mt-2 text-lg font-semibold">มั่นใจใน 3 ขั้นตอน</h3><ol class="mt-6 space-y-6 text-sm"><li class="flex gap-3"><span class="text-indigo-400">01</span><div>กรอกรหัสใบรับรอง<p class="mt-1 text-xs leading-5 text-slate-400">หรือเปิดลิงก์จาก QR Code</p></div></li><li class="flex gap-3"><span class="text-indigo-400">02</span><div>คำนวณ Hash จาก PDF<p class="mt-1 text-xs leading-5 text-slate-400">เลือกไฟล์ที่ต้องการตรวจ ใช้รหัสหลักสูตรและ salt เดิม</p></div></li><li class="flex gap-3"><span class="text-indigo-400">03</span><div>รับผลจากบล็อกเชน<p class="mt-1 text-xs leading-5 text-slate-400">ตรวจทั้ง Hash และการเพิกถอน</p></div></li></ol><p class="mt-6 border-t border-slate-100 pt-4 text-xs leading-6 text-slate-400">อ่านไฟล์ในเบราว์เซอร์ ไม่อัปโหลด PDF หรือข้อมูลส่วนบุคคลไปยัง server</p></aside>
+        </div>
+      </section>
+
+      <section id="view-dashboard" class="view space-y-5" hidden aria-label="Dashboard ผู้รับใบรับรอง">
+        <div class="panel p-6"><h2 class="text-lg font-semibold">คลังความสำเร็จของคุณ</h2><p class="mt-2 text-sm leading-6 text-slate-500">เชื่อมต่อ Wallet เพื่อดูใบรับรองของตัวเอง หรือค้นหาด้วย address สาธารณะ</p><form id="holderForm" class="mt-5 flex flex-col gap-3 sm:flex-row"><label for="holderAddress" class="sr-only">Wallet ผู้รับใบรับรอง</label><input id="holderAddress" class="field flex-1" placeholder="0x… Wallet ของผู้รับ" required autocomplete="off" spellcheck="false"><button class="btn primary shrink-0" type="submit">ค้นหาใบรับรอง</button><button id="myCertsBtn" class="btn outline shrink-0" type="button">ดูของฉัน</button></form></div>
+        <div class="flex flex-wrap items-center justify-between gap-3"><p id="holderSummary" class="text-sm text-slate-500">ยังไม่ได้เลือก Wallet</p><div class="flex gap-2" aria-label="กรองสถานะใบรับรอง"><button type="button" data-filter="all" class="btn secondary">ทั้งหมด</button><button type="button" data-filter="valid" class="btn outline">มีผล</button><button type="button" data-filter="revoked" class="btn outline">เพิกถอน</button></div></div>
+        <div id="holderList" class="grid gap-4 md:grid-cols-2"><div class="panel p-8 text-sm text-slate-400 md:col-span-2">ใบรับรองจะแสดงที่นี่เมื่อเลือก Wallet</div></div>
+      </section>
+
+      <section id="view-courses" class="view space-y-5" hidden aria-label="หลักสูตรอบรม">
+        <div class="flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-lg font-semibold">เรียนรู้ เติบโต และรับการรับรอง</h2><p class="mt-1 text-sm text-slate-500">หลักสูตรที่ลงทะเบียนไว้บน Smart Contract</p></div><button id="createCourseBtn" type="button" class="btn primary" data-permission="admin" disabled>+ เพิ่มหลักสูตร</button></div>
+        <div id="courseList" class="grid gap-4 md:grid-cols-2"><div class="panel p-8 text-sm text-slate-400 md:col-span-2">รอเชื่อมต่อ Smart Contract</div></div>
+        <p class="text-xs text-slate-400">เฉพาะ Admin เพิ่มหรือเปิด/ปิดหลักสูตรได้ · การปิดหลักสูตรไม่เพิกถอนใบรับรองที่ออกไปแล้ว</p>
+      </section>
+
+      <section id="view-issue" class="view space-y-5" hidden aria-label="ออกใบรับรอง">
+        <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm leading-6 text-indigo-800">สำหรับ Issuer ที่ได้รับอนุญาตเท่านั้น · บันทึกเฉพาะรหัสหลักสูตร รหัสใบรับรอง Wallet และ Hash ไม่บันทึกชื่อผู้รับบนเชน</div>
+        <div class="panel p-6 sm:p-8"><h2 class="text-xl font-semibold">ออกใบรับรองใหม่</h2><p class="mt-2 text-sm text-slate-500">ตรวจสอบข้อมูลให้ครบก่อนยืนยัน รายการที่ออกแล้วแก้ไขไม่ได้</p>
+          <form id="issueForm" class="mt-7 space-y-5"><div class="grid gap-5 sm:grid-cols-2"><div><label class="label" for="issueId">รหัสใบรับรอง</label><input id="issueId" class="field" placeholder="ST-2026-001" required maxlength="200" autocomplete="off"></div><div><label class="label" for="issueCourse">หลักสูตรที่เปิดใช้งาน</label><select id="issueCourse" class="field" required><option value="">เลือกหลักสูตร</option></select></div></div><div><label class="label" for="issueRecipient">Wallet ผู้รับใบรับรอง</label><input id="issueRecipient" class="field" placeholder="0x…" required autocomplete="off" spellcheck="false"></div><div><div class="flex flex-wrap items-center justify-between gap-2"><label class="label" for="issueHash">Hash ของใบรับรอง / PDF (bytes32)</label><button class="mb-2 text-sm text-indigo-600 hover:underline" data-hash-target="issueHash" type="button">+ สร้าง Hash แบบ off-chain</button></div><input id="issueHash" class="field font-mono text-xs" placeholder="0x…" required autocomplete="off" spellcheck="false"><p class="mt-2 text-xs leading-6 text-slate-400">เลือก PDF ฉบับสมบูรณ์ที่มีชื่อและรายละเอียดผู้รับ แล้วสร้าง Hash ก่อนออกใบรับรอง · เก็บ PDF และ salt นอกเชน · วันที่ออกบนเชนบันทึกอัตโนมัติเมื่อธุรกรรมยืนยัน</p></div><div class="border-t border-slate-100 pt-5"><button type="submit" class="btn primary" data-permission="issuer" disabled>ออกใบรับรองบน Blockchain ↗</button><p class="mt-3 text-xs text-slate-400">ต้องเชื่อมต่อ Wallet ที่มีสิทธิ์ Issuer และมี Sepolia ETH สำหรับค่า gas · รหัสและ Hash ใช้ซ้ำไม่ได้</p></div></form>
+        </div>
+        <section class="panel p-6"><h2 class="text-lg font-semibold">เพิกถอนใบรับรอง</h2><p class="mt-2 text-sm text-slate-500">Issuer ทุกคนเพิกถอนได้ ไม่จำเป็นต้องเป็นผู้ออกเดิม ประวัติยังคงอยู่และกู้คืนสถานะไม่ได้</p><form id="revokeForm" class="mt-5 space-y-4"><div><label for="revokeId" class="label">รหัสใบรับรอง</label><input id="revokeId" class="field" required placeholder="ST-2026-001" maxlength="200"></div><div><label for="revokeReason" class="label">เหตุผลที่เพิกถอน (ข้อมูลสาธารณะ)</label><textarea id="revokeReason" class="field" required rows="2" maxlength="1000" placeholder="ระบุเหตุผลโดยไม่ใส่ชื่อหรือข้อมูลส่วนบุคคล"></textarea></div><button class="btn danger" type="submit" data-permission="issuer" disabled>เพิกถอนใบรับรอง</button></form></section>
+      </section>
+
+      <section id="view-admin" class="view space-y-5" hidden aria-label="จัดการสิทธิ์">
+        <div class="panel p-6"><p class="eyebrow text-indigo-500">Contract administrator</p><h2 class="mt-2 text-lg font-semibold">ผู้ดูแลระบบปัจจุบัน</h2><p id="adminAddress" class="mt-3 break-all font-mono text-sm text-slate-500">รอเชื่อมต่อ Smart Contract</p><p class="mt-4 text-xs leading-6 text-slate-400">Admin จัดการหลักสูตรและสิทธิ์ ส่วนการออก/เพิกถอนตรวจสิทธิ์ isIssuer แยกต่างหาก</p></div>
+        <div class="grid gap-5 md:grid-cols-2"><section class="panel p-6"><h2 class="text-lg font-semibold">สิทธิ์ผู้ออกใบรับรอง</h2><form id="issuerForm" class="mt-5 space-y-4"><div><label class="label" for="issuerAddress">Wallet ที่ต้องการจัดการ</label><input id="issuerAddress" class="field" required placeholder="0x…" spellcheck="false" autocomplete="off"></div><div class="flex flex-wrap gap-2"><button type="button" id="checkIssuerBtn" class="btn outline">ตรวจสอบสิทธิ์</button><button type="submit" name="operation" value="add" class="btn primary" data-permission="admin" disabled>เพิ่ม Issuer</button><button type="submit" name="operation" value="remove" class="btn danger" data-permission="admin" disabled>ถอนสิทธิ์</button></div><p id="issuerCheckResult" class="text-sm text-slate-500" aria-live="polite"></p></form></section>
+        <section class="panel p-6"><h2 class="text-lg font-semibold">โอนสิทธิ์ Admin</h2><form id="transferForm" class="mt-5 space-y-4"><div><label class="label" for="newAdmin">Wallet ผู้ดูแลใหม่</label><input id="newAdmin" class="field" required placeholder="0x…" spellcheck="false" autocomplete="off"></div><p class="text-xs leading-6 text-amber-700">ผู้ดูแลใหม่จะได้สิทธิ์ Issuer อัตโนมัติ ผู้ดูแลเดิมยังคงเป็น Issuer และการโอนไม่สามารถย้อนกลับเองได้</p><button class="btn danger" type="submit" data-permission="admin" disabled>โอนสิทธิ์ผู้ดูแลระบบ</button></form></section></div>
+      </section>
+
+      <footer class="flex flex-wrap justify-between gap-3 border-t border-slate-200 pt-5 text-[11px] leading-5 text-slate-400"><span>© SkillTrust Academy · CSI301 Lab 10 / โจทย์ที่ 3</span><span>Ethereum Sepolia · สำหรับการศึกษาเท่านั้น · ไม่ใช้เงินจริง</span></footer>
+    </main>
+  </div>
+
+  <dialog id="courseDialog" class="w-[min(94vw,540px)] shadow-2xl" aria-labelledby="courseDialogTitle"><div class="max-h-[90vh] overflow-y-auto p-6 sm:p-8"><div class="mb-6 flex items-start justify-between gap-3"><div><p class="eyebrow text-indigo-500">New training course</p><h2 id="courseDialogTitle" class="mt-2 text-xl font-semibold">ลงทะเบียนหลักสูตร</h2></div><button type="button" class="btn outline" data-close="courseDialog" aria-label="ปิด">✕</button></div><form id="courseForm" class="space-y-4"><div><label for="courseId" class="label">รหัสหลักสูตร</label><input id="courseId" class="field" required maxlength="200" placeholder="AI-101"></div><div><label for="courseName" class="label">ชื่อหลักสูตร</label><input id="courseName" class="field" required maxlength="200" placeholder="AI Fundamentals"></div><div><label for="courseDescription" class="label">รายละเอียดหลักสูตร</label><textarea id="courseDescription" class="field" rows="3" maxlength="2000"></textarea></div><div><label for="courseHours" class="label">จำนวนชั่วโมง</label><input id="courseHours" class="field" type="number" min="0" step="1" required placeholder="12"></div><p class="text-xs leading-6 text-slate-400">ข้อมูลนี้เป็นสาธารณะและแก้ไขไม่ได้หลังบันทึก หลักสูตรจะเปิดใช้งานทันที</p><button type="submit" class="btn primary w-full" data-permission="admin" disabled>บันทึกหลักสูตร</button></form></div></dialog>
+
+  <dialog id="hashDialog" class="w-[min(94vw,600px)] shadow-2xl" aria-labelledby="hashTitle">
+    <div class="max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+      <div class="mb-5 flex items-start justify-between gap-3"><div><p class="eyebrow text-indigo-500">Off-chain hash studio</p><h2 id="hashTitle" class="mt-2 text-xl font-semibold">สร้าง Hash อย่างเป็นส่วนตัว</h2></div><button type="button" class="btn outline" data-close="hashDialog" aria-label="ปิด">✕</button></div>
+      <p class="mb-5 text-sm leading-6 text-slate-500">ตรวจเอกสารปลอมให้ Hash จากไฟล์ PDF จริง คำนวณในเบราว์เซอร์ ไม่ส่งไฟล์ ชื่อ หรือ salt ไปยัง RPC</p>
+      <form id="hashForm" class="space-y-4">
+        <div><label for="hashMode" class="label">วิธีคำนวณ (ต้องใช้วิธีเดิมตอนตรวจสอบ)</label><select id="hashMode" class="field"><option value="pdf">PDF V1 — ตรวจไฟล์ทั้งฉบับ (แนะนำ)</option><option value="metadata">ข้อมูล 4 ช่อง — ใบเดิม / สาธิต computeHash</option></select></div>
+        <div class="grid gap-4 sm:grid-cols-2"><div><label for="hashCertId" class="label">รหัสใบรับรอง (ตรงต้นฉบับ)</label><input id="hashCertId" class="field" required maxlength="200"></div><div><label for="hashCourseId" class="label">รหัสหลักสูตร (ตรงต้นฉบับ)</label><input id="hashCourseId" class="field" required maxlength="200"></div></div>
+        <fieldset id="pdfHashFields" class="space-y-2"><label for="hashPdfFile" class="label">PDF ใบรับรองฉบับสมบูรณ์</label><input id="hashPdfFile" class="field" type="file" accept="application/pdf,.pdf" required aria-describedby="pdfHashHelp"><p id="pdfHashHelp" class="text-xs leading-6 text-slate-500">สูงสุด 20 MiB · Hash ทุกไบต์ รวมชื่อ รายละเอียด และ metadata ภายใน PDF การบันทึกไฟล์ใหม่อาจเปลี่ยน Hash แม้หน้าตาเหมือนเดิม · ไม่อัปโหลดไฟล์</p></fieldset>
+        <fieldset id="metadataHashFields" hidden disabled class="space-y-2"><label for="hashHolderName" class="label">ชื่อผู้รับ (เก็บนอกเชนเท่านั้น)</label><input id="hashHolderName" class="field" required autocomplete="off" maxlength="300"><p class="text-xs leading-6 text-amber-700">สูตรเดียวกับ computeHash ใน Solidity แต่ทำ off-chain ตรวจเฉพาะข้อมูล 4 ช่อง ไม่ยืนยันว่าไฟล์ PDF ไม่ถูกแก้ไข</p></fieldset>
+        <div><div class="flex items-center justify-between gap-2"><label for="hashSalt" class="label">Salt</label><button id="generateSaltBtn" class="mb-2 text-xs text-indigo-600" type="button">สุ่มใหม่ ↻</button></div><input id="hashSalt" class="field font-mono text-xs" required autocomplete="off" spellcheck="false"><p class="mt-2 text-xs leading-5 text-amber-700">เก็บ PDF ต้นฉบับ วิธี Hash รหัส และ salt อย่างปลอดภัย ต้องใช้ค่าเดิมเพื่อตรวจซ้ำ ปิดหน้าต่างแล้วข้อมูลจะถูกล้าง ไม่เก็บใน localStorage หรือบนเชน</p></div>
+        <button id="computeHashBtn" type="submit" class="btn secondary w-full">คำนวณ keccak256</button>
+      </form>
+      <div id="hashOutput" hidden class="mt-5 space-y-3 rounded-xl bg-slate-50 p-4" aria-live="polite"><p id="hashScheme" class="eyebrow text-slate-400">Result · bytes32</p><p id="hashValue" class="break-all font-mono text-xs leading-6"></p><div class="flex flex-wrap gap-2"><button id="copyHashBtn" class="btn outline" type="button">คัดลอก Hash</button><button id="useHashBtn" class="btn primary" type="button">ใช้ Hash นี้</button></div></div>
+    </div>
+  </dialog>
+
+  <dialog id="detailDialog" class="w-[min(94vw,750px)] shadow-2xl" aria-labelledby="detailTitle"><div class="max-h-[90vh] overflow-y-auto p-6 sm:p-8"><div class="mb-6 flex items-start justify-between gap-3"><div><p class="eyebrow text-indigo-500">On-chain certificate</p><h2 id="detailTitle" class="mt-2 break-all text-xl font-semibold">รายละเอียดใบรับรอง</h2></div><button type="button" class="btn outline" data-close="detailDialog" aria-label="ปิด">✕</button></div><div id="detailContent"></div></div></dialog>
+  <div id="txStatus" hidden class="fixed bottom-4 left-4 right-4 z-40 rounded-xl border border-indigo-100 bg-white p-4 text-sm shadow-xl sm:left-auto sm:w-96" role="status" aria-live="polite"></div>
+  <div id="toast" hidden class="fixed left-4 right-4 top-4 z-50 rounded-xl bg-[#192b5b] p-4 text-sm text-white shadow-xl sm:left-auto sm:w-96" role="status" aria-live="polite"></div>
+</body>
+</html>
