@@ -1,0 +1,15 @@
+{
+  "name": "digitalwork-escrow-tests",
+  "private": true,
+  "scripts": {
+    "test": "node --test requirements.test.cjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "ethers": "6.14.0",
+    "ganache": "7.9.2",
+    "solc": "0.8.26"
+  }
+}
