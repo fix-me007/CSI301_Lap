@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f8fafc" />
+  <title>InnovateFund — Crowdfunding with Milestones</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.5/ethers.umd.min.js" defer></script>
+  <script src="./config.js" defer></script>
+  <script src="./app.js" defer></script>
+  <style>
+    @font-face { font-family: 'LINE Seed Sans TH'; src: url('./assets/fonts/LINESeedSansTH_W_Rg.woff2') format('woff2'); font-style: normal; font-weight: 400; font-display: swap; }
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body,button,input,textarea { font-family: 'LINE Seed Sans TH',system-ui,sans-serif; }
+    body { background: #f8fafc; }
+    .card { background: white; border: 1px solid #e2e8f0; border-radius: 1.25rem; box-shadow: 0 2px 12px rgba(15,23,42,.025); }
+    .btn { border-radius: .8rem; padding: .7rem 1.1rem; font-size: .92rem; transition: .18s; font-weight: 600; }
+    .btn-primary { color: white; background: #2563eb; }
+    .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+    .btn-soft { color: #1e40af; background: #eff6ff; }
+    .btn-soft:hover:not(:disabled) { background: #dbeafe; }
+    .btn-border { color: #334155; background: white; border: 1px solid #cbd5e1; }
+    .btn-border:hover:not(:disabled) { background: #f8fafc; }
+    .btn:disabled { opacity: .42; cursor: not-allowed; }
+    .field { border: 1px solid #cbd5e1; border-radius: .75rem; padding: .75rem .9rem; background: white; outline: none; width: 100%; }
+    .field:focus { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
+    .field-label { display: block; color: #334155; font-weight: 600; font-size: .9rem; margin-bottom: .4rem; }
+    .muted { color: #64748b; }
+    .pill { display: inline-flex; align-items: center; gap: .4rem; padding: .25rem .65rem; border-radius: 999px; font-size: .75rem; font-weight: 600; background: #f1f5f9; color: #475569; }
+    .skeleton { background: linear-gradient(90deg,#f1f5f9,#e2e8f0,#f1f5f9); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+    @keyframes shimmer { to { background-position-x: -200%; } }
+    dialog::backdrop { background: rgba(15,23,42,.5); backdrop-filter: blur(3px); }
+    dialog { max-height: 90vh; }
+    button:focus-visible, a:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+  </style>
+</head>
+<body class="text-slate-900 antialiased min-h-screen">
+  <div class="border-b border-slate-200 bg-white/95 sticky top-0 z-30 backdrop-blur">
+    <header class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
+      <a href="#" class="flex items-center gap-3 shrink-0" aria-label="InnovateFund หน้าแรก">
+        <span class="w-10 h-10 rounded-xl bg-blue-600 text-white grid place-items-center font-bold text-lg">IF</span>
+        <span><strong class="text-lg tracking-tight">InnovateFund</strong><span class="hidden sm:block text-xs text-slate-500">Milestone Crowdfunding</span></span>
+      </a>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <span id="networkBadge" class="pill hidden sm:inline-flex">Sepolia Testnet</span>
+        <button id="refreshBtn" class="btn btn-border hidden sm:block" type="button">↻ รีเฟรช</button>
+        <button id="connectBtn" class="btn btn-primary whitespace-nowrap" type="button">เชื่อมต่อ MetaMask</button>
+      </div>
+    </header>
+  </div>
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-9">
+    <section class="rounded-3xl overflow-hidden relative bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white px-6 sm:px-10 py-9 sm:py-12">
+      <div class="absolute w-72 h-72 bg-blue-600/20 rounded-full blur-3xl -right-20 -top-20 pointer-events-none"></div>
+      <div class="relative max-w-2xl">
+        <span class="inline-block text-xs font-semibold rounded-full px-3 py-1 bg-white/10 border border-white/10 text-blue-100 mb-5">⛓ Ethereum Sepolia Testnet</span>
+        <h1 class="text-3xl sm:text-5xl tracking-tight leading-tight font-bold">เปลี่ยนไอเดียให้เป็นจริง<br/><span class="text-blue-300">ด้วยเงินทุนที่โปร่งใส</span></h1>
+        <p class="mt-4 text-slate-300 text-base sm:text-lg">สนับสนุนโปรเจกต์ที่คุณเชื่อมั่น ติดตาม Milestone ตรวจสอบการโหวตและประวัติธุรกรรมบนบล็อกเชน</p>
+        <div class="flex flex-wrap gap-3 mt-7"><button id="openCreateBtn" class="btn bg-white text-slate-900 hover:bg-blue-50" type="button">+ สร้างโครงการ</button><a href="#campaigns" class="btn border border-white/25 hover:bg-white/10">สำรวจโครงการ ↓</a></div>
+      </div>
+    </section>
+    <section>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="card p-5"><div class="text-sm muted">โครงการทั้งหมด</div><div id="statProjects" class="font-bold text-3xl mt-2">—</div><p class="text-xs muted mt-1">บน Smart Contract นี้</p></div>
+        <div class="card p-5"><div class="text-sm muted">เงินระดมทุนรวม</div><div id="statRaised" class="font-bold text-3xl mt-2">—</div><p class="text-xs muted mt-1">Sepolia ETH (ทดสอบ)</p></div>
+        <div class="card p-5"><div class="text-sm muted">เงินที่จ่ายตาม Milestone</div><div id="statPaid" class="font-bold text-3xl mt-2">—</div><p class="text-xs muted mt-1">จ่ายให้เจ้าของโครงการแล้ว</p></div>
+      </div>
+    </section>
+    <section id="campaigns" class="scroll-mt-28">
+      <div class="flex flex-wrap justify-between gap-3 items-end mb-5"><div><h2 class="text-2xl font-bold">สำรวจโครงการ</h2><p class="muted text-sm mt-1">ข้อมูลจริงที่อ่านจาก CrowdfundingMilestone</p></div><div class="flex gap-2"><button id="filterAll" class="btn btn-primary" type="button">ทั้งหมด</button><button id="filterMine" class="btn btn-border" type="button">ของฉัน</button></div></div>
+      <div id="notice" class="hidden mb-5 rounded-xl p-4 text-sm bg-amber-50 text-amber-900 border border-amber-200" role="status"></div>
+      <div id="campaignGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"><div class="card p-8 muted">กำลังโหลดโครงการ...</div></div>
+    </section>
+    <footer class="border-t border-slate-200 pt-6 flex flex-wrap justify-between gap-2 text-sm muted"><span>InnovateFund · Blockchain Crowdfunding Demo</span><span>Sepolia ETH ไม่มีมูลค่าเป็นเงินจริง · ตรวจสอบธุรกรรมก่อนยืนยันทุกครั้ง</span></footer>
+  </main>
+  <dialog id="createDialog" class="w-[min(95vw,640px)] rounded-2xl p-0 border-0 shadow-2xl">
+    <div class="p-5 sm:p-7 overflow-y-auto max-h-[90vh]"><div class="flex items-center justify-between mb-5"><div><h2 class="font-bold text-xl">สร้างโครงการใหม่</h2><p class="muted text-sm mt-1">รวมสัดส่วน Milestone ต้องเท่ากับ 100%</p></div><button type="button" class="btn btn-border" data-close="createDialog">✕</button></div>
+      <form id="createForm" class="space-y-4">
+        <div><label class="field-label" for="titleInput">ชื่อโครงการ</label><input required maxlength="140" id="titleInput" class="field" placeholder="เช่น ระบบจัดการขยะอัจฉริยะ" /></div>
+        <div class="grid grid-cols-2 gap-3"><div><label class="field-label" for="goalInput">เป้าหมาย (ETH)</label><input required type="text" inputmode="decimal" id="goalInput" class="field" placeholder="0.1" /></div><div><label class="field-label" for="durationInput">ระดมทุน (วัน)</label><input required type="number" min="1" max="3650" id="durationInput" class="field" value="14" /></div></div>
+        <div><div class="flex items-center justify-between mb-2"><label class="field-label mb-0">Milestones (สูงสุด 10)</label><button type="button" id="addMilestone" class="text-sm font-semibold text-blue-700 hover:underline">+ เพิ่มระยะงาน</button></div><div id="milestoneFields" class="space-y-2"></div><p id="percentageTotal" class="text-sm muted mt-2">รวม: 0%</p></div>
+        <div class="flex justify-end gap-2 pt-3"><button type="button" data-close="createDialog" class="btn btn-border">ยกเลิก</button><button type="submit" class="btn btn-primary">สร้างบน Blockchain</button></div>
+      </form>
+    </div>
+  </dialog>
+  <dialog id="detailDialog" class="w-[min(96vw,920px)] rounded-2xl p-0 border-0 shadow-2xl">
+    <div class="p-5 sm:p-7 max-h-[90vh] overflow-y-auto"><div class="flex justify-between items-start gap-3 mb-5"><div><div class="text-xs uppercase tracking-wide font-bold text-blue-600">Project details</div><h2 id="detailTitle" class="text-2xl font-bold mt-1">โครงการ</h2></div><button type="button" class="btn btn-border" data-close="detailDialog">✕</button></div><div id="detailContent" class="space-y-6"></div></div>
+  </dialog>
+  <div id="toast" class="fixed bottom-5 right-5 left-5 sm:left-auto sm:max-w-md bg-slate-900 text-white rounded-xl p-4 shadow-xl hidden z-50 text-sm" role="status" aria-live="polite"></div>
+</body>
+</html>
